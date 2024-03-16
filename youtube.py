@@ -1,5 +1,5 @@
 # %%
-import googleapiclient.discovery
+from googleapiclient.discovery import build
 import pymongo
 import pandas as pd
 import mysql.connector as sql
@@ -13,7 +13,7 @@ import plotly.express as px
 api_key = "AIzaSyDeNGdSiAyKWkvHmKZzNZb3yT0_xN3PmAg"
 api_service_name = "youtube"
 api_version = "v3"
-youtube = googleapiclient.discovery.build(api_service_name, api_version,developerKey = api_key)
+youtube = build(api_service_name, api_version,developerKey = api_key)
 
 # %%
 def get_channel_details(c_id):
