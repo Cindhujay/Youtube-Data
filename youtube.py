@@ -6,8 +6,6 @@ import mysql.connector as sql
 import plotly.graph_objects as go
 import pandas as pd
 import pymongo
-import isodate
-from datetime import datetime
 
 #api connection
 api_key = "AIzaSyDeNGdSiAyKWkvHmKZzNZb3yT0_xN3PmAg"
