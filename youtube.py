@@ -14,7 +14,7 @@ api_version = "v3"
 youtube = googleapiclient.discovery.build(api_service_name,api_version,developerKey=api_key)
 
 #sql connection
-mydb = sql.connect(host="localhost",user="cindhu",password="root@123",port=3306)
+mydb = sql.connect(host="localhost",user="root",password="root@123",port=3306)
 cursor = mydb.cursor(buffered=True)
 
 #mongodb connection
@@ -98,11 +98,11 @@ def get_video_details(v_ids):
                                 
     return video_data
 
-def get_comment_details(co_ids):
+def get_comment_details(v_ids):
     comment_data=[]
     try:
         next_page = None
-        for co_id  in co_ids:
+        for co_id  in v_ids:
                             
             c_request=youtube.commentThreads().list(
                                 part="snippet",
@@ -127,44 +127,45 @@ def get_comment_details(co_ids):
     return comment_data    
 
 #Transfer to MongoDB
-def channel():
-    db = conn['Youtube_Data']
+def channel(user_input):
+    db = conn['Youtube_data']
     collection1=db['channel']
-    details = get_channel_details(user_input)
-    collection1.insert_one(details)
+    details_list = get_channel_details(user_input)
+    for details in details_list:
+        collection1.insert_one(details) 
 
-def videos():
-    db = conn['Youtube_Data']
+def videos(user_input):
+    db = conn['Youtube_data']
     collection2=db['video']
     id = get_video_ids(user_input)
     video_details = get_video_details(id)
     collection2.insert_many(video_details)
 
-def comments():
-    db = conn['Youtube_Data']
+def comments(user_input):
+    db = conn['Youtube_data']
     collection3=db['comments']
     id = get_video_ids(user_input)
     comment_details = get_comment_details(id)
     collection3.insert_many(comment_details)
 
 #function table_exists
-def table_exists(cursor,Channel):
+def table_exists_channel(cursor,Channel):
     cursor.execute("SHOW TABLES LIKE %s", (Channel,))
     return cursor.fetchone() is not None
 
-def table_exists(cursor,video):
+def table_exists_video(cursor,video):
     cursor.execute("SHOW TABLES LIKE %s", (video,))
     return cursor.fetchone() is not None
 
-def table_exists(cursor,comments):
+def table_exists_comments(cursor,comments):
     cursor.execute("SHOW TABLES LIKE %s", (comments,))
     return cursor.fetchone() is not None  
 
 #function migrate to mysql
 def migrate_channel(user_input):    
-    db=conn['YouTube_Data']
+    db=conn['Youtube_data']
     collection1=db['channel']
-    if not table_exists(cursor,'Channel'):
+    if not table_exists_channel(cursor,'Channel'):
         
         cursor.execute("""
             CREATE TABLE Channel (
@@ -188,9 +189,9 @@ def migrate_channel(user_input):
         return False
     
 def migrate_video(user_input):
-    db=conn['YouTube_Data']
+    db=conn['Youtube_data']
     collection2=db['video']
-    if not table_exists(cursor,'video'):
+    if not table_exists_video(cursor,'video'):
         cursor.execute("""
             CREATE TABLE video (
                 Channel_name VARCHAR(255),Channel_id VARCHAR(255),Video_Id VARCHAR(255),Title TEXT,Tags TEXT,Thumbnail VARCHAR(255),
@@ -220,9 +221,9 @@ def migrate_video(user_input):
         return False
 
 def migrate_comments(user_input):
-    db=conn['YouTube_Data']  
+    db=conn['Youtube_data']  
     collection3=db['comment']
-    if not table_exists(cursor,'comments'):
+    if not table_exists_comments(cursor,'comments'):
     
         cursor.execute("""
             CREATE TABLE comments (
@@ -378,8 +379,7 @@ def Query10():
       df10=pd.DataFrame(r10,columns=c10)
       st.write(df10)
 
-
-tab1, tab2, tab3, tab4 = st.tabs(["$\large COLLECT DATA $", "$\large TRANSFER $", "$\large MIGRATE  $", "$\large VIEW $" ])
+tab1, tab2, tab3, tab4 = st.tabs([r"$\large COLLECT DATA $", r"$\large TRANSFER $", r"$\large MIGRATE  $", r"$\large VIEW $" ])
 with tab1:
     st.header("Collection of data page")
     if st.button("Collect Channel Details"):
@@ -410,9 +410,7 @@ with tab2:
     st.header("Transfer datas to mongoDB")
     if st.button("Transfer Channel to mongoDB"):
         ids=[]
-        db=conn['YouTube_Data']
-        collection1=db['channel']
-        for ids_c in collection1.find({},{"_id":0,"Channel_id":1}):
+        for ids_c in mongo_con['Youtube_data']['channel'].find({},{"_id":0,"Channel_id":1}):
             ids.append(ids_c['Channel_id'])
 
         if user_input in ids:
@@ -422,9 +420,7 @@ with tab2:
             st.success("Channel details uploaded to mongodb successfully!!!")
 
     if st.button("Transfer Videos to mongodb"):
-        db=conn['YouTube_Data']
-        col=db['video']
-        ids_v=col.distinct("Channel_id")
+        ids_v=mongo_con['Youtube_data']['video'].distinct("Channel_id")
         if user_input in ids_v:
            st.error("Video details already exists")
         else:
@@ -433,9 +429,7 @@ with tab2:
        
         
     if st.button("Transfer Comments to mongodb"):
-        db=conn['YouTube_Data']
-        col=db['comment']
-        com_d= col.distinct("Channel_id")
+        com_d= mongo_con['Youtube_data']['comment'].distinct("Channel_id")
         if user_input in com_d:
            st.error("comment details already exists")
         else:
