@@ -165,56 +165,36 @@ def table_exists_comments(cursor,comments):
 
 #function migrate to mysql
 def migrate_channel(user_input):    
-    db=conn['Youtube_data']
-    collection1=db['channel']
-    if not table_exists_channel(cursor,'Channel'):
-        
+    db = mongo_con['Youtube_data']
+    col1 = db['channel']
+    if not table_exists_channel(cursor, 'channel'):
         cursor.execute("""
-            CREATE TABLE Channel (
-                Channel_Id VARCHAR(255),Channel_name VARCHAR(255),Description TEXT,Published_at DATETIME,
-                    Playlist_id VARCHAR(255),Subscriber_count INT,video_count INT,View_count INT,PRIMARY KEY(Channel_Id))""")
-    try:
-        for document in collection1.find({"Channel_Id":user_input}, {"_id": 0}):
-            cursor.execute("""
-                INSERT INTO Channel (
-                    Channel_Id,Channel_name,Description,Published_at,Playlist_id,Subscriber_count, video_count,
-                        View_count) VALUES 
-                        ( %s, %s, %s, %s, %s, %s, %s,%s)""",                 
-                (document.get("Channel_id"),document.get("Channel_name"),document.get("Description"), document.get("Published_at"), 
-                document.get("Playlist_id"), document.get("Subscriber_count"),
-                document.get("video_count"), document.get("View_count") ))
-        mydb.commit()
-        return True
-    except Exception as e:
-        print("Error occurred during migration:", e)
-        mydb.rollback() 
-        return False
+            CREATE TABLE channel (
+                Channel_id VARCHAR(255) PRIMARY KEY,
+                Channel_name VARCHAR(255),
+                Description TEXT,
+                playlist_id VARCHAR(255),
+                Subscribers INT,
+                channel_views INT,
+                Total_videos INT
+            )""")
     
-def migrate_video(user_input):
-    db=conn['Youtube_data']
-    collection2=db['video']
-    if not table_exists_video(cursor,'video'):
-        cursor.execute("""
-            CREATE TABLE video (
-                Channel_name VARCHAR(255),Channel_id VARCHAR(255),Video_Id VARCHAR(255),Title TEXT,Tags TEXT,Thumbnail VARCHAR(255),
-                Description TEXT,Published_Date DATETIME,Duration TIME,Views INT,likes INT,Comments INT,Favorite_Count INT,
-                Caption_Status VARCHAR(255))""")
     try:
-        cursor.execute("SELECT COUNT(*) FROM video WHERE Channel_id = %s", (user_input))
+        cursor.execute("SELECT COUNT(*) FROM channel WHERE Channel_id = %s", (user_input,))
         count = cursor.fetchone()[0]
         if count > 0:
             return False
-        for document in collection2.find({"Channel_id":user_input}, {"_id": 0}):
+        for document in col1.find({"Channel_id": user_input}, {"_id": 0}):
             cursor.execute("""
-                INSERT INTO video (
-                    Channel_name, Channel_id, Video_Id, Title, Tags, Thumbnail,Description, Published_Date, Duration, 
-                        Views, likes, Comments,Favorite_Count, Caption_Status) VALUES 
-                        ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",                 
-                (document.get("Channel_Name"), document.get("Channel_Id"), document.get("Video_Id"), document.get("Title"),
-                document.get("Tags"), document.get("Thumbnail"), document.get("Description"), document.get("Published_Date"),
-                document.get("Duration"), document.get("Views"), document.get("likes"), document.get("Comments"),
-                document.get("Favorite_Count"), document.get("Caption_Status")
-            ))
+                INSERT INTO channel (
+                    Channel_id, Channel_name, Description, playlist_id, Subscribers, channel_views,
+                    Total_videos
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)""",                 
+                (
+                    document.get("Channel_id"), document.get("Channel_name"), document.get("Description"), 
+                    document.get("playlist_id"), document.get("Subscribers"), document.get("channel_views"), 
+                    document.get("Total_videos")
+                ))
         mydb.commit()
         return True
     except Exception as e:
@@ -222,31 +202,112 @@ def migrate_video(user_input):
         mydb.rollback() 
         return False
 
-def migrate_comments(user_input):
-    db=conn['Youtube_data']  
-    collection3=db['comment']
-    if not table_exists_comments(cursor,'comments'):
+# Migrate video function
+def migrate_video(user_input):
+    db = mongo_con['Youtube_data']
+    col2 = db['video']
     
-        cursor.execute("""
-            CREATE TABLE comments (
-                Comment_Id VARCHAR(255),Channel_id VARCHAR(255),Video_Id VARCHAR(255),Comment_Text TEXT,Comment_Author VARCHAR(255), 
-                    Comment_Published DATETIME)""")
+    if not table_exists_video(cursor, 'video'):
+        cursor.execute("""                              
+                CREATE TABLE video (
+                Channel_name VARCHAR(255),
+                Channel_id VARCHAR(255),
+                Video_Id VARCHAR(255),
+                Title TEXT,
+                Tags TEXT,
+                Description TEXT,
+                PublishedAt DATETIME,
+                Thumbnail VARCHAR(255),
+                Duration INT,  -- Changed to INT for storing duration in seconds
+                Views_count INT,
+                Likes_count INT,  -- Changed from Likes_count_count
+                Comments_count INT,  -- Changed from Comments_count
+                Favorite_Count INT,
+                Definition VARCHAR(255),
+                Caption_Status VARCHAR(255)                                                                 
+                        
+            )
+        """)
+    
     try:
-        cursor.execute("SELECT COUNT(*) FROM comments WHERE Channel_id = %s", (user_input))
+        cursor.execute("SELECT COUNT(*) FROM video WHERE Channel_id = %s", (user_input,))
         count = cursor.fetchone()[0]
-        if count > 0:
-            return False
-        for document in collection3.find({"Channel_Id":user_input}, {"_id": 0}):
+        # if count > 0:
+        #     return False
+        
+        for document in col2.find({"Channel_id": user_input}, {"_id": 0}):
             cursor.execute("""
-                INSERT INTO comments (
-                    Comment_Id,Channel_Id,Video_Id,Comment_Text,Comment_Author,Comment_Published) VALUES 
-                        ( %s,%s, %s, %s, %s, %s)""",                 
-                (document.get("Comment_Id"),document.get("Channel_id"),document.get("Video_Id"),document.get("Comment_Text"),document.get("Comment_Author"), 
-                document.get("Comment_Published") ))
+                INSERT INTO video (                   
+                    Channel_name, Channel_id, Video_Id, Title, Tags,Description,PublishedAt, Thumbnail,
+                    Duration, Views_count, Likes_count, Comments_count, Favorite_Count, Definition, Caption_Status                    
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """, 
+            (
+                document.get("Channel_name"),
+                document.get("Channel_id"),
+                document.get("Video_Id"),
+                document.get("Title"),
+                ', '.join(document.get("Tags")) if document.get("Tags") else None,
+                document.get("Description"),
+                document.get("PublishedAt"),
+                document.get("Thumbnail"),
+                isodate.parse_duration(document.get("Duration")).total_seconds() if document.get("Duration") else None,
+                document.get("Views_count"),
+                document.get("Likes_count"),
+                document.get("Comments_count"),
+                document.get("Favorite_Count"),
+                document.get("Definition"),
+                document.get("Caption_Status")
+            ))
+        
         mydb.commit()
         return True
     except Exception as e:
-        print("Error occurred during migration:", e)
+        print("Error occurred during video migration:", e)
+        mydb.rollback() 
+        return False
+
+# Migrate comments function
+def migrate_comments(user_input):
+    db = mongo_con['Youtube_data']  
+    col3 = db['comments']
+    if not table_exists_comments(cursor, 'comments'):    
+        cursor.execute("""
+            CREATE TABLE comments (
+                Comment_Id VARCHAR(255),
+                Channel_id VARCHAR(255),
+                Comment_Text TEXT,
+                Comment_Author VARCHAR(255), 
+                Comment_Published DATETIME
+            )
+        """)
+    try:
+        cursor.execute("SELECT COUNT(*) FROM comments WHERE Channel_id = %s", (user_input,))
+        count = cursor.fetchone()[0]
+        # # if count > 0:
+        #     print("Details already transformed!!!")
+        #     return False
+        for document in col3.find({"Channel_id": user_input}, {"_id": 0}):
+            Comment_Published = datetime.strptime(document.get("Comment_Published"), '%Y-%m-%dT%H:%M:%SZ')
+            cursor.execute("""
+                INSERT INTO comments (
+                    Comment_Id, Channel_id, Comment_Text, Comment_Author, Comment_Published
+                ) VALUES (
+                    %s, %s, %s, %s, %s
+                )
+            """, (
+                document.get("Comment_Id"),
+                document.get("Channel_id"),
+                document.get("Comment_Text"),
+                document.get("Comment_Author"),
+                Comment_Published.strftime('%Y-%m-%d %H:%M:%S')
+            ))
+        mydb.commit()
+        return True
+    except Exception as e:
+        print("Error occurred during comments migration:", e)
         mydb.rollback() 
         return False
 
